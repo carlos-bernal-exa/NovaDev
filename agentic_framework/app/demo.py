@@ -29,6 +29,10 @@ async def main():
     mcp_test = await framework.test_mcp_connection()
     print(json.dumps(mcp_test, indent=2))
     
+    print("\n🔍 Testing Case Search:")
+    case_search_test = await framework.test_case_search()
+    print(json.dumps(case_search_test, indent=2))
+    
     print("\n🎯 Testing Intent Detection and Routing:")
     test_queries = [
         "I need help analyzing a suspicious email attachment that might be malware",

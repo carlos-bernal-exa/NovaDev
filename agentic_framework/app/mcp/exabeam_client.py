@@ -130,6 +130,7 @@ class ExabeamMCPClient:
         self.token_manager = token_manager
         self.mcp_session: Optional[ClientSession] = None
         self.logger = logging.getLogger("exabeam_mcp_client")
+        self.base_url = token_manager.base_url
     
     async def connect_to_mcp_server(self, server_command: str = "exabeam-mcp-server") -> None:
         """Connect to the Exabeam MCP server"""
@@ -177,4 +178,68 @@ class ExabeamMCPClient:
             return [tool.name for tool in tools]
         except Exception as e:
             self.logger.error(f"Failed to list MCP tools: {str(e)}")
+            raise
+    
+    async def search_cases(
+        self,
+        limit: int = 3000,
+        start_time: str = "2024-05-01T00:00:00Z",
+        end_time: str = "2024-06-01T00:00:00Z",
+        fields: List[str] = None,
+        filter_query: str = 'product: ("Correlation Rule", "NG Analytics")'
+    ) -> Dict[str, Any]:
+        """
+        Search Exabeam cases using the threat-center API.
+        
+        Args:
+            limit: Maximum number of cases to return (default: 3000)
+            start_time: Start time for search in ISO format (default: 2024-05-01T00:00:00Z)
+            end_time: End time for search in ISO format (default: 2024-06-01T00:00:00Z)
+            fields: List of fields to return (default: ["*"] for all fields)
+            filter_query: Filter query string (default: product filter)
+        
+        Returns:
+            Dictionary containing search results from Exabeam API
+        """
+        if fields is None:
+            fields = ["*"]
+        
+        try:
+            access_token = await self.token_manager.get_access_token()
+        except Exception as e:
+            self.logger.error(f"Failed to get access token for case search: {str(e)}")
+            raise
+        
+        url = f"{self.base_url}/threat-center/v1/search/cases"
+        headers = {
+            "accept": "application/json",
+            "authorization": f"Bearer {access_token}",
+            "content-type": "application/json"
+        }
+        
+        payload = {
+            "limit": limit,
+            "startTime": start_time,
+            "endTime": end_time,
+            "fields": fields,
+            "filter": filter_query
+        }
+        
+        self.logger.info(f"Searching cases with limit={limit}, timerange={start_time} to {end_time}")
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, json=payload, headers=headers) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        case_count = len(result.get("cases", []))
+                        self.logger.info(f"Successfully retrieved {case_count} cases")
+                        return result
+                    else:
+                        error_text = await response.text()
+                        self.logger.error(f"Case search failed: {response.status} - {error_text}")
+                        raise Exception(f"Case search failed: {response.status} - {error_text}")
+        
+        except Exception as e:
+            self.logger.error(f"Error searching cases: {str(e)}")
             raise

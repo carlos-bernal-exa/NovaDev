@@ -268,6 +268,33 @@ Provide technical, implementable security architecture recommendations."""
                 "error": str(e)
             }
 
+    async def test_case_search(self) -> Dict[str, Any]:
+        """Test the Exabeam case search functionality"""
+        self.logger.info("Testing Exabeam case search")
+
+        try:
+            result = await self.mcp_client.search_cases(
+                limit=10,
+                start_time="2024-05-01T00:00:00Z",
+                end_time="2024-06-01T00:00:00Z"
+            )
+            
+            case_count = len(result.get("cases", []))
+            
+            return {
+                "test_passed": True,
+                "case_count": case_count,
+                "has_results": case_count > 0,
+                "sample_fields": list(result.get("cases", [{}])[0].keys()) if case_count > 0 else []
+            }
+
+        except Exception as e:
+            self.logger.error(f"Case search test failed: {str(e)}")
+            return {
+                "test_passed": False,
+                "error": str(e)
+            }
+
     def get_framework_status(self) -> Dict[str, Any]:
         """Get current framework status"""
         return {
