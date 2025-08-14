@@ -34,7 +34,7 @@ def generate_token(
     Returns:
         JWT token string
     """
-    now = datetime.utcnow() - timedelta(seconds=5)
+    now = datetime.utcnow() - timedelta(seconds=30)
     payload = {
         "sub": user_id,
         "name": name,
@@ -64,7 +64,7 @@ def decode_token(token: str, secret: str, algorithm: str = "HS256") -> Dict[str,
             token, 
             secret, 
             algorithms=[algorithm],
-            leeway=timedelta(seconds=10)  # Allow 10 seconds leeway for timing issues
+            leeway=timedelta(seconds=60)  # Allow 10 seconds leeway for timing issues
         )
         return payload
     except jwt.InvalidTokenError as e:
