@@ -19,8 +19,34 @@ fi
 
 echo ""
 echo "🔐 Step 2: Generating JWT secret..."
-JWT_SECRET=$(openssl rand -base64 32)
-echo "Generated JWT Secret: $JWT_SECRET"
+
+if command -v openssl >/dev/null 2>&1; then
+    JWT_SECRET=$(openssl rand -base64 32)
+    echo "✅ Generated JWT Secret using OpenSSL: $JWT_SECRET"
+elif command -v python3 >/dev/null 2>&1; then
+    JWT_SECRET=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))" 2>/dev/null)
+    if [ $? -eq 0 ]; then
+        echo "✅ Generated JWT Secret using Python: $JWT_SECRET"
+    else
+        JWT_SECRET="ExabeamMCP-$(date +%s)-$(whoami)-$(head -c 16 /dev/urandom | base64 | tr -d '=' | tr '+/' '-_')"
+        echo "✅ Generated JWT Secret using fallback method: $JWT_SECRET"
+    fi
+elif command -v node >/dev/null 2>&1; then
+    JWT_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('base64'))" 2>/dev/null)
+    if [ $? -eq 0 ]; then
+        echo "✅ Generated JWT Secret using Node.js: $JWT_SECRET"
+    else
+        JWT_SECRET="ExabeamMCP-$(date +%s)-$(whoami)-$(head -c 16 /dev/urandom | base64 | tr -d '=' | tr '+/' '-_')"
+        echo "✅ Generated JWT Secret using fallback method: $JWT_SECRET"
+    fi
+else
+    JWT_SECRET="ExabeamMCP-$(date +%s)-$(whoami)-$(head -c 16 /dev/urandom | base64 | tr -d '=' | tr '+/' '-_')"
+    echo "✅ Generated JWT Secret using fallback method: $JWT_SECRET"
+fi
+
+echo ""
+echo "💡 Security Note: This secret is unique to your installation."
+echo "   Keep it secure and never share it publicly!"
 
 echo ""
 echo "⚙️  Step 3: Updating .env file with JWT secret..."
