@@ -34,12 +34,25 @@ cd standalone-mcp-server
 cp .env.example .env
 ```
 
-### Step 2: Configure Environment Variables
+### Step 2: Generate JWT Secret
 
-Edit the `.env` file with your credentials:
+**IMPORTANT**: Generate your JWT secret FIRST before configuring the .env file:
 
 ```bash
-# Required: JWT Authentication
+# Generate a secure JWT secret (you can use any strong secret)
+JWT_SECRET="your-super-secure-jwt-secret-key-here"
+
+# Or generate a random secret
+JWT_SECRET=$(openssl rand -base64 32)
+echo "Generated JWT Secret: $JWT_SECRET"
+```
+
+### Step 3: Configure Environment Variables
+
+Edit the `.env` file with your credentials, **using the JWT secret from Step 2**:
+
+```bash
+# Required: JWT Authentication (use the secret from Step 2)
 JWT_SECRET=your-super-secure-jwt-secret-key-here
 
 # Required: Exabeam API Credentials
@@ -58,10 +71,12 @@ VAULT_TOKEN=your-vault-token
 VAULT_SECRET_PATH=secret/exabeam-mcp
 ```
 
-### Step 3: Generate JWT Tokens
+### Step 4: Generate JWT Tokens for Testing
+
+**After** configuring your .env file, generate test JWT tokens:
 
 ```bash
-# Generate a test JWT token
+# Generate a test JWT token (use the same secret from your .env file)
 python scripts/generate_token.py generate "your-super-secure-jwt-secret-key-here" "user123" "Test User" true 24
 
 # Example output:
@@ -69,7 +84,7 @@ python scripts/generate_token.py generate "your-super-secure-jwt-secret-key-here
 # Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-### Step 4: Deploy with Docker
+### Step 5: Deploy with Docker
 
 **Option A: Docker Compose (Recommended)**
 ```bash
@@ -92,7 +107,7 @@ docker run -d -p 8080:8080 \
   exabeam-mcp-server
 ```
 
-### Step 5: Test the Deployment
+### Step 6: Test the Deployment
 
 ```bash
 # Test the comprehensive connection script
