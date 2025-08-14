@@ -80,7 +80,8 @@ async def startup_event():
     if not jwt_secret:
         raise ValueError("JWT_SECRET must be set")
     
-    exabeam_manager = ExabeamTokenManager(client_id, client_secret)
+    cache_file = os.getenv("TOKEN_CACHE_FILE", "/tmp/exabeam_token_cache.json")
+    exabeam_manager = ExabeamTokenManager(client_id, client_secret, token_cache_file=cache_file)
     mcp_server = MCPServer(exabeam_manager)
     
     logger.info("Exabeam MCP Server initialized successfully")

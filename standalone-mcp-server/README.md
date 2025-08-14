@@ -108,6 +108,8 @@ VAULT_SECRET_PATH=secret/exabeam-mcp
 
 **After** configuring your .env file, generate test JWT tokens:
 
+#### Standard JWT Token (with expiration):
+
 ```bash
 # Generate a test JWT token (note: all 5 parameters are required)
 python scripts/generate_token.py generate "your-super-secure-jwt-secret-key-here" "user123" "Test User" true 24
@@ -122,6 +124,14 @@ python scripts/generate_token.py generate "JHoM0t4t6ROLHqUN8t9Cvg7wws/PoHyMaeQuT
 # Generated JWT Token:
 # Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
+
+#### Non-Expiring JWT Token (for long-term use):
+
+```bash
+python scripts/generate_token.py generate "your-super-secure-jwt-secret-key-here" "user123" "Test User" true 0 HS256 --no-expiry
+```
+
+This will generate a JWT token that never expires. **⚠️ Security Warning**: Non-expiring tokens should be rotated periodically and kept secure.
 
 ### Step 5: Deploy with Docker
 

@@ -20,13 +20,15 @@ class ExabeamTokenManager:
         client_id: str,
         client_secret: str,
         base_url: str = "https://api.us-west.exabeam.cloud",
-        token_endpoint: str = "/auth/v1/token"
+        token_endpoint: str = "/auth/v1/token",
+        token_cache_file: Optional[str] = None
     ):
         self.client_id = client_id
         self.client_secret = client_secret
         self.base_url = base_url
         self.token_endpoint = token_endpoint
         self.full_token_url = f"{base_url}{token_endpoint}"
+        self.token_cache_file = token_cache_file
         
         self._access_token: Optional[str] = None
         self._refresh_token: Optional[str] = None
@@ -36,6 +38,8 @@ class ExabeamTokenManager:
         self.logger = logging.getLogger("exabeam_token_manager")
         
         self.refresh_buffer_seconds = 300
+        
+        self._load_cached_token()
     
     async def get_access_token(self) -> str:
         """
@@ -104,6 +108,8 @@ class ExabeamTokenManager:
         
         self.logger.info(f"Token will expire at: {self._token_expires_at}")
         self.logger.info(f"Token TTL: {self._token_ttl} seconds")
+        
+        self._save_cached_token()
     
     def get_token_info(self) -> Dict[str, Any]:
         """Get current token information"""
@@ -118,3 +124,43 @@ class ExabeamTokenManager:
     async def force_refresh(self) -> None:
         """Force a token refresh regardless of current state"""
         await self._refresh_token_async()
+    
+    def _load_cached_token(self) -> None:
+        """Load cached token from disk if available"""
+        if not self.token_cache_file or not os.path.exists(self.token_cache_file):
+            return
+        
+        try:
+            with open(self.token_cache_file, 'r') as f:
+                cache_data = json.load(f)
+            
+            self._access_token = cache_data.get("access_token")
+            self._refresh_token = cache_data.get("refresh_token")
+            self._token_ttl = cache_data.get("token_ttl")
+            
+            if cache_data.get("expires_at"):
+                self._token_expires_at = datetime.fromisoformat(cache_data["expires_at"])
+            
+            self.logger.info("Loaded cached token from disk")
+        except Exception as e:
+            self.logger.warning(f"Failed to load cached token: {e}")
+
+    def _save_cached_token(self) -> None:
+        """Save current token to disk"""
+        if not self.token_cache_file:
+            return
+        
+        cache_data = {
+            "access_token": self._access_token,
+            "refresh_token": self._refresh_token,
+            "token_ttl": self._token_ttl,
+            "expires_at": self._token_expires_at.isoformat() if self._token_expires_at else None
+        }
+        
+        try:
+            os.makedirs(os.path.dirname(self.token_cache_file), exist_ok=True)
+            with open(self.token_cache_file, 'w') as f:
+                json.dump(cache_data, f)
+            self.logger.info("Saved token to cache file")
+        except Exception as e:
+            self.logger.warning(f"Failed to save token cache: {e}")

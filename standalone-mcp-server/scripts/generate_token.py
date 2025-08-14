@@ -18,7 +18,8 @@ def generate_token(
     name: str = "Test User",
     admin: bool = False,
     hours: int = 24,
-    algorithm: str = "HS256"
+    algorithm: str = "HS256",
+    no_expiry: bool = False
 ) -> str:
     """
     Generate a JWT token for testing
@@ -28,8 +29,9 @@ def generate_token(
         user_id: User identifier
         name: User display name
         admin: Whether user has admin privileges
-        hours: Token validity in hours
+        hours: Token validity in hours (ignored if no_expiry=True)
         algorithm: JWT algorithm (HS256 or RS256)
+        no_expiry: If True, creates a non-expiring token
     
     Returns:
         JWT token string
@@ -40,9 +42,11 @@ def generate_token(
         "name": name,
         "admin": admin,
         "iat": int(now.timestamp()),
-        "exp": int((now + timedelta(hours=hours)).timestamp()),
         "iss": "exabeam-mcp-server"
     }
+    
+    if not no_expiry:
+        payload["exp"] = int((now + timedelta(hours=hours)).timestamp())
     
     token = jwt.encode(payload, secret, algorithm=algorithm)
     return token
@@ -95,13 +99,14 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: python generate_token.py <command> [options]")
         print("\nCommands:")
-        print("  generate <jwt_secret> <user_id> <display_name> <admin> [hours] [algorithm]")
+        print("  generate <jwt_secret> <user_id> <display_name> <admin> [hours] [algorithm] [--no-expiry]")
         print("  decode <token> <jwt_secret> [algorithm]")
         print("  example - Generate example token like the user provided")
         print("\nExamples:")
         print("  python generate_token.py generate my-secret-key")
         print("  python generate_token.py generate my-secret-key user123 'John Doe' true 48")
         print("  python generate_token.py generate 'secret-with-special-chars=' user123 'John Doe' true 24")
+        print("  python generate_token.py generate my-secret-key user123 'John Doe' true 0 HS256 --no-expiry")
         print("  python generate_token.py decode eyJ... my-secret-key")
         print("  python generate_token.py example")
         sys.exit(1)
@@ -123,17 +128,23 @@ def main():
         hours = int(sys.argv[6]) if len(sys.argv) > 6 else 24
         algorithm = sys.argv[7] if len(sys.argv) > 7 else "HS256"
         
+        no_expiry = "--no-expiry" in sys.argv
+        
         if len(sys.argv) > 5 and sys.argv[5].lower() not in ['true', 'false']:
             print(f"❌ Error: Admin parameter must be 'true' or 'false', got '{sys.argv[5]}'")
             sys.exit(1)
         
-        token = generate_token(secret, user_id, name, admin, hours, algorithm)
+        token = generate_token(secret, user_id, name, admin, hours, algorithm, no_expiry)
         
         print(f"Generated JWT Token:")
         print(f"Token: {token}")
         print(f"\nPayload:")
         payload = decode_token(token, secret, algorithm)
         print(json.dumps(payload, indent=2))
+        
+        if no_expiry:
+            print(f"\n⚠️  WARNING: This is a NON-EXPIRING token. Keep it secure!")
+            print(f"   Consider rotating this token periodically for security.")
         
         print(f"\nUsage:")
         print(f"curl -H 'Authorization: Bearer {token}' http://localhost:8080/mcp/tools")
