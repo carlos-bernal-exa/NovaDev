@@ -24,6 +24,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+try:
+    from vault_client import VaultClient, load_secrets_from_vault, merge_vault_secrets
+    vault_available = True
+except ImportError:
+    vault_available = False
+    logger.warning("Vault client not available, using environment variables only")
+
 app = FastAPI(
     title="Standalone Exabeam MCP Server",
     version="1.0.0",
@@ -42,19 +49,36 @@ app.add_middleware(
 
 exabeam_manager: Optional[ExabeamTokenManager] = None
 mcp_server: Optional[MCPServer] = None
+vault_client: Optional['VaultClient'] = None
 
 @app.on_event("startup")
 async def startup_event():
     """Initialize the application on startup"""
-    global exabeam_manager, mcp_server
+    global exabeam_manager, mcp_server, vault_client
     
     logger.info("Starting Exabeam MCP Server...")
     
+    if vault_available:
+        vault_client = VaultClient()
+        if vault_client.enabled:
+            logger.info("Vault integration enabled, loading secrets...")
+            try:
+                vault_secrets = await vault_client.get_secrets()
+                merge_vault_secrets(vault_secrets)
+                logger.info("Successfully loaded secrets from Vault")
+            except Exception as e:
+                logger.error(f"Failed to load secrets from Vault: {str(e)}")
+                logger.info("Continuing with environment variables...")
+    
     client_id = os.getenv("EXABEAM_CLIENT_ID")
     client_secret = os.getenv("EXABEAM_CLIENT_SECRET")
+    jwt_secret = os.getenv("JWT_SECRET")
     
     if not client_id or not client_secret:
         raise ValueError("EXABEAM_CLIENT_ID and EXABEAM_CLIENT_SECRET must be set")
+    
+    if not jwt_secret:
+        raise ValueError("JWT_SECRET must be set")
     
     exabeam_manager = ExabeamTokenManager(client_id, client_secret)
     mcp_server = MCPServer(exabeam_manager)
@@ -112,12 +136,31 @@ class SearchCasesRequest(BaseModel):
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {
+    health_status = {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "service": "exabeam-mcp-server",
         "version": "1.0.0"
     }
+    
+    if vault_client and vault_client.enabled:
+        try:
+            vault_healthy = await vault_client.health_check()
+            health_status["vault"] = {
+                "enabled": True,
+                "healthy": vault_healthy,
+                "url": vault_client.vault_url
+            }
+        except Exception as e:
+            health_status["vault"] = {
+                "enabled": True,
+                "healthy": False,
+                "error": str(e)
+            }
+    else:
+        health_status["vault"] = {"enabled": False}
+    
+    return health_status
 
 @app.post("/mcp/search-cases")
 async def search_cases(
