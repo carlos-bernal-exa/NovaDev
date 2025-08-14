@@ -109,8 +109,14 @@ VAULT_SECRET_PATH=secret/exabeam-mcp
 **After** configuring your .env file, generate test JWT tokens:
 
 ```bash
-# Generate a test JWT token (use the same secret from your .env file)
+# Generate a test JWT token (note: all 5 parameters are required)
 python scripts/generate_token.py generate "your-super-secure-jwt-secret-key-here" "user123" "Test User" true 24
+
+# Common mistake - missing display name (will show helpful error):
+# python scripts/generate_token.py generate "your-super-secure-jwt-secret-key-here" "user123" true 24  # ❌ Wrong
+
+# Correct format with your actual secret:
+python scripts/generate_token.py generate "JHoM0t4t6ROLHqUN8t9Cvg7wws/PoHyMaeQuTJOMAgU=" "Carlito" "Carlito User" true 24
 
 # Example output:
 # Generated JWT Token:
@@ -491,22 +497,36 @@ python scripts/test_vault.py
 
 ### Common Issues
 
-1. **JWT Authentication Fails**:
+1. **JWT Token Generation Errors**:
+   - **Missing display name parameter**: The script requires 5 parameters: `<secret> <user_id> <display_name> <admin> <hours>`
+     ```bash
+     # ❌ Wrong (missing display name):
+     python3 scripts/generate_token.py generate "secret" "user" true 24
+     
+     # ✅ Correct:
+     python3 scripts/generate_token.py generate "secret" "user" "User Name" true 24
+     ```
+   - **Special characters in JWT secret**: Always quote secrets containing special characters like `=`, `/`, `+`
+     ```bash
+     python3 scripts/generate_token.py generate "JHoM0t4t6ROLHqUN8t9Cvg7wws/PoHyMaeQuTJOMAgU=" "user" "User Name" true 24
+     ```
+
+2. **JWT Authentication Fails**:
    - Verify JWT_SECRET matches token generation
    - Check token expiration
    - Ensure proper Authorization header format
 
-2. **Exabeam API Connection Issues**:
+3. **Exabeam API Connection Issues**:
    - Verify EXABEAM_CLIENT_ID and EXABEAM_CLIENT_SECRET
    - Check network connectivity to Exabeam API
    - Review Exabeam token expiration
 
-3. **Container Won't Start**:
+4. **Container Won't Start**:
    - Check environment variables are set
    - Verify Docker has sufficient resources
    - Review container logs for specific errors
 
-4. **SSE Connection Drops**:
+5. **SSE Connection Drops**:
    - Check network stability
    - Verify JWT token hasn't expired
    - Review Nginx proxy configuration
