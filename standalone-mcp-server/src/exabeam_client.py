@@ -125,6 +125,25 @@ class ExabeamTokenManager:
         """Force a token refresh regardless of current state"""
         await self._refresh_token_async()
     
+    async def start_background_refresh(self) -> None:
+        """Start background token refresh task"""
+        self.logger.info("Starting background token refresh task")
+        
+        while True:
+            try:
+                if self._needs_refresh():
+                    self.logger.info("Background refresh: Token needs refresh")
+                    await self._refresh_token_async()
+                else:
+                    self.logger.debug("Background refresh: Token still valid")
+                
+                sleep_time = min(1800, self.refresh_buffer_seconds)  # 30 min max
+                await asyncio.sleep(sleep_time)
+                
+            except Exception as e:
+                self.logger.error(f"Background refresh error: {str(e)}")
+                await asyncio.sleep(300)
+    
     def _load_cached_token(self) -> None:
         """Load cached token from disk if available"""
         if not self.token_cache_file or not os.path.exists(self.token_cache_file):
