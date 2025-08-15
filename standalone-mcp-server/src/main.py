@@ -50,11 +50,12 @@ app.add_middleware(
 exabeam_manager: Optional[ExabeamTokenManager] = None
 mcp_server: Optional[MCPServer] = None
 vault_client: Optional['VaultClient'] = None
+background_refresh_task: Optional[asyncio.Task] = None
 
 @app.on_event("startup")
 async def startup_event():
     """Initialize the application on startup"""
-    global exabeam_manager, mcp_server, vault_client
+    global exabeam_manager, mcp_server, vault_client, background_refresh_task
     
     logger.info("Starting Exabeam MCP Server...")
     
@@ -83,6 +84,9 @@ async def startup_event():
     cache_file = os.getenv("TOKEN_CACHE_FILE", "/tmp/exabeam_token_cache.json")
     exabeam_manager = ExabeamTokenManager(client_id, client_secret, token_cache_file=cache_file)
     mcp_server = MCPServer(exabeam_manager)
+    
+    background_refresh_task = asyncio.create_task(exabeam_manager.start_background_refresh())
+    logger.info("Background token refresh task started")
     
     logger.info("Exabeam MCP Server initialized successfully")
 
@@ -133,6 +137,23 @@ class SearchCasesRequest(BaseModel):
     end_time: str = "2024-06-01T00:00:00Z"
     fields: List[str] = ["*"]
     filter_query: str = 'product: ("Correlation Rule", "NG Analytics")'
+
+class SearchAlertsRequest(BaseModel):
+    """Request model for alert search"""
+    limit: int = 3000
+    start_time: str = "2024-05-01T00:00:00Z"
+    end_time: str = "2024-06-01T00:00:00Z"
+    fields: List[str] = ["*"]
+    filter_query: str = "caseId:null"
+
+class SearchEventsRequest(BaseModel):
+    """Request model for event search"""
+    limit: int = 3000
+    start_time: str = "2024-04-01T00:00:00Z"
+    end_time: str = "2024-04-08T00:00:00Z"
+    fields: List[str] = ["*"]
+    filter_query: str = 'product:"Audit Log"'
+    distinct: bool = False
 
 @app.get("/health")
 async def health_check():
@@ -191,6 +212,63 @@ async def search_cases(
         logger.error(f"Case search failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/mcp/search-alerts")
+async def search_alerts(
+    request: SearchAlertsRequest,
+    token_payload: dict = Depends(verify_jwt_token)
+):
+    """Search Exabeam alerts with JWT authentication"""
+    try:
+        logger.info(f"Alert search requested by user: {token_payload.get('name', 'unknown')}")
+        
+        result = await mcp_server.search_alerts(
+            limit=request.limit,
+            start_time=request.start_time,
+            end_time=request.end_time,
+            fields=request.fields,
+            filter_query=request.filter_query
+        )
+        
+        return {
+            "success": True,
+            "data": result,
+            "user": token_payload.get("name", token_payload.get("sub", "unknown")),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Alert search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/mcp/search-events")
+async def search_events(
+    request: SearchEventsRequest,
+    token_payload: dict = Depends(verify_jwt_token)
+):
+    """Search Exabeam events with JWT authentication"""
+    try:
+        logger.info(f"Event search requested by user: {token_payload.get('name', 'unknown')}")
+        
+        result = await mcp_server.search_events(
+            limit=request.limit,
+            start_time=request.start_time,
+            end_time=request.end_time,
+            fields=request.fields,
+            filter_query=request.filter_query,
+            distinct=request.distinct
+        )
+        
+        return {
+            "success": True,
+            "data": result,
+            "user": token_payload.get("name", token_payload.get("sub", "unknown")),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Event search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/mcp/tools")
 async def list_tools(token_payload: dict = Depends(verify_jwt_token)):
     """List available MCP tools"""
@@ -205,6 +283,29 @@ async def list_tools(token_payload: dict = Depends(verify_jwt_token)):
                     "end_time": "End time in ISO format (default: 2024-06-01T00:00:00Z)", 
                     "fields": "List of fields to return (default: ['*'])",
                     "filter_query": "Filter query string (default: product filter)"
+                }
+            },
+            {
+                "name": "search_alerts",
+                "description": "Search Exabeam security alerts",
+                "parameters": {
+                    "limit": "Maximum number of alerts to return (default: 3000)",
+                    "start_time": "Start time in ISO format (default: 2024-05-01T00:00:00Z)",
+                    "end_time": "End time in ISO format (default: 2024-06-01T00:00:00Z)",
+                    "fields": "List of fields to return (default: ['*'])",
+                    "filter_query": "Filter query string (default: caseId:null)"
+                }
+            },
+            {
+                "name": "search_events",
+                "description": "Search Exabeam security events",
+                "parameters": {
+                    "limit": "Maximum number of events to return (default: 3000)",
+                    "start_time": "Start time in ISO format (default: 2024-04-01T00:00:00Z)",
+                    "end_time": "End time in ISO format (default: 2024-04-08T00:00:00Z)",
+                    "fields": "List of fields to return (default: ['*'])",
+                    "filter_query": "Filter query string (default: product:\"Audit Log\")",
+                    "distinct": "Whether to return distinct results (default: false)"
                 }
             }
         ],
@@ -281,20 +382,19 @@ async def stream_events(
     
     return EventSourceResponse(event_generator())
 
-@app.get("/mcp/token-status")
-async def get_token_status(token_payload: dict = Depends(verify_jwt_token)):
-    """Get current Exabeam token status"""
-    try:
-        token_info = exabeam_manager.get_token_info()
-        return {
-            "success": True,
-            "token_info": token_info,
-            "user": token_payload.get("name", token_payload.get("sub", "unknown")),
-            "timestamp": datetime.utcnow().isoformat()
-        }
-    except Exception as e:
-        logger.error(f"Error getting token status: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up on shutdown"""
+    global background_refresh_task
+    
+    if background_refresh_task and not background_refresh_task.done():
+        logger.info("Cancelling background refresh task...")
+        background_refresh_task.cancel()
+        try:
+            await background_refresh_task
+        except asyncio.CancelledError:
+            logger.info("Background refresh task cancelled successfully")
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
