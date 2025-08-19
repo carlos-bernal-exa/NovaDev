@@ -1,0 +1,55 @@
+name: nova-agent
+displayName: "Nova AI Framework Agent"
+description: "AI agent for BEAM rule explanation and exclusion creation using Exabeam security platform"
+version: "1.0.0"
+
+# Agent configuration
+agent:
+  entrypoint: "nova_framework.py"
+  handler: "NovaFramework"
+  runtime: "python3.9"
+
+# Environment configuration
+environment:
+  GOOGLE_APPLICATION_CREDENTIALS: "/Users/cbernal/Downloads/threatexplainer-1185aa9fcd44.json"
+  LOG_LEVEL: "INFO"
+  DATASTORE_ID: "content_1755237537757"
+
+# Dependencies
+dependencies:
+  - google-cloud-aiplatform>=1.38.0
+  - google-adk>=0.1.0
+  - google-genai>=0.1.0
+  - pydantic>=2.0.0
+  - python-dotenv>=1.0.0
+  - asyncio
+
+# Resource requirements
+resources:
+  memory: "2Gi"
+  cpu: "1000m"
+
+# OAuth configuration for Agentspace
+oauth:
+  scopes:
+    - "https://www.googleapis.com/auth/cloud-platform"
+    - "https://www.googleapis.com/auth/dialogflow"
+    - "https://www.googleapis.com/auth/discoveryengine"
+
+# Agent capabilities
+capabilities:
+  - name: "beam_rule_explanation"
+    description: "Explain BEAM security detection rules and their components"
+  - name: "exclusion_creation"  
+    description: "Create exclusions for BEAM rules to reduce false positives"
+  - name: "security_analysis"
+    description: "Analyze security events and provide recommendations"
+
+# Integration with Agentspace
+agentspace:
+  agent_id: "agentspace-1754331730713_1754331730714"
+  datastore_ids:
+    - "content_1755237537757"
+  search_tier: "SEARCH_TIER_ENTERPRISE"
+  search_addons:
+    - "SEARCH_ADD_ON_LLM"

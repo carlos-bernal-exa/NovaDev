@@ -43,7 +43,7 @@ Always explain why you're routing to a specific agent.
         super().__init__(
             name="Concierge",
             description="Routes user requests to appropriate specialized agents based on intent detection",
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             instruction=instruction,
             sub_agents=specialized_agents,
             **kwargs

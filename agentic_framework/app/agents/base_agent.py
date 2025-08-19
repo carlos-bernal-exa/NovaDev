@@ -15,7 +15,7 @@ class AgenticBaseAgent(ADKBaseAgent):
         self,
         name: str,
         description: str = "",
-        model: str = "gemini-2.0-flash",
+        model: str = "gemini-2.5-flash",
         **kwargs
     ):
         super().__init__(name=name, description=description, **kwargs)
@@ -28,7 +28,7 @@ class AgenticBaseAgent(ADKBaseAgent):
         yield Event(author=self.name, content=f"Agent {self.name} completed")
 
 class SpecializedAgent(LlmAgent):
-    """Specialized agent for specific domains using Gemini-2.0-flash"""
+    """Specialized agent for specific domains using Gemini-2.5-flash"""
     
     def __init__(
         self,
@@ -41,7 +41,7 @@ class SpecializedAgent(LlmAgent):
         super().__init__(
             name=name,
             description=description,
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             instruction=instruction,
             **kwargs
         )

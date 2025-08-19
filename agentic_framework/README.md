@@ -1,6 +1,6 @@
 # Agentic Security Framework
 
-A multi-agent security framework built with Google ADK that uses a concierge agent to route security-related queries to specialized agents powered by Gemini-2.0-flash.
+A multi-agent security framework built with Google ADK that uses a concierge agent to route security-related queries to specialized agents powered by Gemini-2.5-flash.
 
 ## Features
 
@@ -10,7 +10,7 @@ A multi-agent security framework built with Google ADK that uses a concierge age
   - ComplianceExpert: Compliance, regulations, and security frameworks
   - IncidentResponder: Security incident response and forensics
   - SecurityArchitect: Security architecture and technical solutions
-- **Gemini-2.0-flash Integration**: Powered by Google's latest language model via Vertex AI
+- **Gemini-2.5-flash Integration**: Powered by Google's latest language model via Vertex AI
 - **Exabeam MCP Integration**: Automatic token management with TTL tracking and refresh
 - **Robust Token Management**: Automatic refresh before expiration with 120-second skew
 
@@ -19,7 +19,7 @@ A multi-agent security framework built with Google ADK that uses a concierge age
 The framework implements the coordinator/dispatcher pattern from Google ADK:
 1. User queries are received by the Concierge Agent
 2. Concierge analyzes intent and routes to appropriate specialized agent
-3. Specialized agents use Gemini-2.0-flash to generate responses
+3. Specialized agents use Gemini-2.5-flash to generate responses
 4. MCP client manages Exabeam API tokens automatically
 
 ## Setup
@@ -73,7 +73,7 @@ print(response)
 
 The framework includes comprehensive testing for:
 - Intent detection and routing
-- Gemini-2.0-flash integration via Vertex AI
+- Gemini-2.5-flash integration via Vertex AI
 - Exabeam token management and automatic refresh
 - End-to-end query processing
 

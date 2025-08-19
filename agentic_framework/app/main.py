@@ -9,7 +9,7 @@ from .framework import AgenticFramework
 
 app = FastAPI(
     title="Agentic Framework API",
-    description="Multi-agent system with concierge routing and Gemini-2.0-flash integration",
+    description="Multi-agent system with concierge routing and Gemini-2.5-flash integration",
     version="1.0.0"
 )
 
@@ -50,7 +50,7 @@ def read_root():
     return {
         "message": "Agentic Framework API",
         "version": "1.0.0",
-        "description": "Multi-agent system with concierge routing and Gemini-2.0-flash integration"
+        "description": "Multi-agent system with concierge routing and Gemini-2.5-flash integration"
     }
 
 @app.get("/healthz")
